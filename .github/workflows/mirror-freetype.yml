@@ -17,11 +17,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download from upstream (official savannah mirror redirector)
+      - name: Download freetype from upstream (official savannah mirror redirector)
         run: |
           curl -fSL --retry 5 --retry-delay 5 --retry-all-errors \
             -o "freetype-${{ inputs.version }}.tar.xz" \
             "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-${{ inputs.version }}.tar.xz"
+
+      # config.guess / config.sub are not freetype files: the Oak build
+      # refreshes the outdated copies bundled in old release tarballs with
+      # these (see tooling/ffmpeg/build-deps.sh). git.savannah.gnu.org is
+      # as flaky as the download area, so they ride along on the release.
+      - name: Download config.guess / config.sub from upstream
+        run: |
+          for f in config.guess config.sub; do
+            curl -fSL --retry 5 --retry-delay 5 --retry-all-errors \
+              -o "$f" "https://git.savannah.gnu.org/cgit/config.git/plain/$f"
+            head -1 "$f"
+            grep -m1 'timestamp=' "$f"
+          done
 
       - name: Verify the tarball
         run: |
@@ -34,11 +47,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="v${{ inputs.version }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists; skipping"
-            exit 0
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "freetype ${{ inputs.version }}" \
+              --notes "Unmodified mirror of https://download.savannah.gnu.org/releases/freetype/freetype-${{ inputs.version }}.tar.xz (plus config.guess/config.sub from https://git.savannah.gnu.org/cgit/config.git)" \
+              "freetype-${{ inputs.version }}.tar.xz"
           fi
-          gh release create "$tag" \
-            --title "freetype ${{ inputs.version }}" \
-            --notes "Unmodified mirror of https://download.savannah.gnu.org/releases/freetype/freetype-${{ inputs.version }}.tar.xz" \
-            "freetype-${{ inputs.version }}.tar.xz"
+          # Idempotent: refreshes the config.* assets on every run.
+          gh release upload "$tag" config.guess config.sub --clobber
