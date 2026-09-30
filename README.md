@@ -14,18 +14,21 @@ Oak 的 CI（以及本地构建脚本 `tooling/ffmpeg/build-deps.sh`）需要从
 tarball 并以 GitHub Release 的形式重新发布，构建脚本改为从 GitHub
 下载，利用 GitHub 的 CDN 获得稳定、快速的下载。
 
-### 包含的版本
+### 包含的内容
 
-| 版本 | 上游地址 | 镜像 Release |
+| 文件 | 上游地址 | 镜像 Release |
 | ---- | -------- | ------------ |
-| 2.13.3 | <https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz> | <https://github.com/OakVideoEditorCommunity/freetype-mirror/releases/tag/v2.13.3> |
+| freetype-2.13.3.tar.xz | <https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz> | <https://github.com/OakVideoEditorCommunity/freetype-mirror/releases/tag/v2.13.3> |
+| config.guess / config.sub | <https://git.savannah.gnu.org/cgit/config.git> | 同上（附在 Release 资产中，供构建脚本刷新老 tarball 里过时的副本） |
 
 ### 如何镜像新版本
 
 手动触发 **Mirror freetype release** workflow（Actions 页面），输入版本号即可。
 workflow 会从 savannah 官方镜像重定向器
 （`download-mirror.savannah.gnu.org`）下载并校验 tarball，
-然后创建标签为 `v<版本号>` 的 Release 并附带该 tarball。
+然后创建标签为 `v<版本号>` 的 Release 并附带该 tarball；
+同时把 savannah `config.git` 里的 `config.guess` / `config.sub`
+一并上传到该 Release（每次运行都会刷新这两个文件）。
 
 ### 完整性说明
 
@@ -50,7 +53,10 @@ GitHub Release, so builds download from GitHub's CDN instead.
 Manually dispatch the **Mirror freetype release** workflow with the version
 number. The workflow downloads the tarball from
 `download-mirror.savannah.gnu.org`, verifies it, and creates a release
-tagged `v<version>` with the tarball attached.
+tagged `v<version>` with the tarball attached. It also uploads
+`config.guess` / `config.sub` from savannah's `config.git` to the same
+release (refreshed on every run) — build scripts use them to replace the
+outdated copies bundled in old release tarballs.
 
 ### Integrity
 
